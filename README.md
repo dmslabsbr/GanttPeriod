@@ -17,14 +17,17 @@
 - **Smart History**: Remembers recently used period names for quick selection across all inputs.
 - **Local Persistence**: All data is saved locally in your browser (LocalStorage).
 - **Docker Ready**: Deploy easily using the pre-configured Docker environment.
+- **GitHub Pages Ready**: Automated deployment via GitHub Actions.
 
 ## 🚀 Installation & Running
 
-### Prerequisites
-- [Docker](https://docs.docker.com/get-docker/)
-- [Docker Compose](https://docs.docker.com/compose/install/)
+### Option 1: GitHub Pages (Easiest)
+Once you push this code to your GitHub repository:
+1. Go to **Settings** > **Pages** in your GitHub repo.
+2. Under **Build and deployment** > **Source**, select **GitHub Actions**.
+3. The app will automatically deploy every time you push to the `main` branch.
 
-### Quick Start
+### Option 2: Docker (Local)
 1. Clone the repository.
 2. Grant execution permissions to the script:
    ```bash

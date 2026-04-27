@@ -17,14 +17,17 @@
 - **Histórico Inteligente**: Sugere nomes de períodos usados anteriormente em qualquer campo de entrada.
 - **Privacidade e Persistência**: Os dados são salvos apenas no navegador do usuário (LocalStorage).
 - **Pronto para Docker**: Suba o ambiente em segundos.
+- **GitHub Pages**: Implantação automática via GitHub Actions.
 
 ## 🚀 Como Instalar e Executar
 
-### Pré-requisitos
-- [Docker](https://docs.docker.com/get-docker/)
-- [Docker Compose](https://docs.docker.com/compose/install/)
+### Opção 1: GitHub Pages (Mais Fácil)
+Após subir o código para seu repositório no GitHub:
+1. Vá em **Settings** > **Pages** no seu repositório.
+2. Em **Build and deployment** > **Source**, selecione **GitHub Actions**.
+3. O app será publicado automaticamente sempre que você fizer um push para a branch `main`.
 
-### Instruções Rápidas
+### Opção 2: Docker (Local)
 1. Clone este repositório.
 2. Dê permissão de execução ao script:
    ```bash
