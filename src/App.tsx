@@ -25,14 +25,26 @@ interface CalculationResults {
 
 // --- Utils ---
 
-const dateToString = (date: Date) => date.toISOString().split('T')[0];
+const dateToString = (date: Date) => {
+  if (!date || isNaN(date.getTime())) return '';
+  try {
+    return date.toISOString().split('T')[0];
+  } catch (e) {
+    return '';
+  }
+};
 
 const parseDate = (dateStr: string) => {
-  const [year, month, day] = dateStr.split('-').map(Number);
-  return new Date(year, month - 1, day);
+  if (!dateStr) return new Date(NaN);
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return new Date(NaN);
+  const [year, month, day] = parts.map(Number);
+  const date = new Date(year, month - 1, day);
+  return date;
 };
 
 const diffInDays = (start: Date, end: Date) => {
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return 0;
   const diffTime = end.getTime() - start.getTime();
   return Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
 };
@@ -40,7 +52,12 @@ const diffInDays = (start: Date, end: Date) => {
 const formatDate = (dateStr: string) => {
   if (!dateStr) return '';
   const date = parseDate(dateStr);
-  return new Intl.DateTimeFormat('pt-BR').format(date);
+  if (isNaN(date.getTime())) return '';
+  try {
+    return new Intl.DateTimeFormat('pt-BR').format(date);
+  } catch (e) {
+    return '';
+  }
 };
 
 // --- Main Component ---
@@ -220,10 +237,13 @@ export default function App() {
       const updated = { ...p, [field]: value };
       
       // Auto-logic: If start is updated, set end to start + 1
-      if (field === 'start') {
+      if (field === 'start' && value) {
         const d = parseDate(value);
-        d.setDate(d.getDate() + 1);
-        updated.end = dateToString(d);
+        if (!isNaN(d.getTime())) {
+          d.setDate(d.getDate() + 1);
+          const nextEnd = dateToString(d);
+          if (nextEnd) updated.end = nextEnd;
+        }
       }
       
       return updated;
@@ -293,7 +313,8 @@ export default function App() {
         if (intersectStart < intersectEnd) {
           const overlapDays = Math.floor((intersectEnd - intersectStart) / (1000 * 60 * 60 * 24));
           if (overlapDays > 0) {
-            overlaps.push(`  - ${overlapDays} dias concomitantes com ${other.name || `Período-${(oIdx + 1).toString().padStart(2, '0')}`};`);
+            const dateRange = `(${formatDate(dateToString(new Date(intersectStart)))} a ${formatDate(dateToString(new Date(intersectEnd)))})`;
+            overlaps.push(`  - ${overlapDays} dias concomitantes com ${other.name || `Período-${(oIdx + 1).toString().padStart(2, '0')}`} ${dateRange};`);
           }
         }
       });
@@ -400,7 +421,7 @@ export default function App() {
       <main className="grid grid-cols-12 gap-6 flex-grow min-h-0">
         
         {/* Sidebar: Period Inputs */}
-        <aside className="col-span-4 flex flex-col gap-4 min-h-0">
+        <aside className="col-span-5 flex flex-col gap-4 min-h-0">
           <section className="bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col min-h-0">
             <div className="p-4 border-b border-slate-100 flex justify-between items-center">
               <h2 className="text-sm font-bold text-slate-700 uppercase">Entrada de Períodos</h2>
@@ -422,13 +443,62 @@ export default function App() {
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: -10 }}
-                      className="period-card bg-slate-50 border border-slate-200 rounded-lg p-3 relative group"
+                      className="period-card bg-slate-50 border border-slate-200 rounded-lg p-3 relative group flex gap-3"
                     >
-                      <div className="absolute -top-2 -right-8 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                      <div className="flex-grow">
+                        <div className="grid grid-cols-2 gap-2 mb-2">
+                          <div>
+                            <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Início</label>
+                            <input 
+                              type="date"
+                              value={p.start}
+                              onChange={(e) => updatePeriod(p.id, 'start', e.target.value)}
+                              className="w-full px-2 py-1.5 rounded border border-slate-200 text-xs focus:ring-1 focus:ring-indigo-500 outline-none bg-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Fim</label>
+                            <input 
+                              type="date"
+                              min={p.start}
+                              value={p.end}
+                              onChange={(e) => updatePeriod(p.id, 'end', e.target.value)}
+                              className={`w-full px-2 py-1.5 rounded border text-xs focus:ring-1 focus:ring-indigo-500 outline-none bg-white ${
+                                isInvalid ? 'border-red-500' : 'border-slate-200'
+                              } ${statusClass}`}
+                            />
+                          </div>
+                        </div>
+                        
+                        <div className="relative">
+                          <input 
+                            type="text"
+                            list="names-list"
+                            value={p.name}
+                            onBlur={(e) => commitToHistory(e.target.value)}
+                            onChange={(e) => updatePeriod(p.id, 'name', e.target.value)}
+                            placeholder="Nome do período"
+                            className="w-full px-2 py-1.5 rounded border border-slate-200 text-xs focus:ring-1 focus:ring-indigo-500 outline-none font-medium bg-white"
+                          />
+                          <div className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-bold text-slate-400">
+                            {days}d
+                          </div>
+                        </div>
+
+                        {isInvalid && (
+                          <div className="mt-1 flex items-center gap-1 text-[9px] text-red-500 font-bold uppercase tracking-wider">
+                            <AlertTriangle size={10} />
+                            Data inválida
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Action Bar */}
+                      <div className="flex flex-col justify-center gap-1.5 pl-3 border-l border-slate-200 shrink-0">
                         <button 
                           onClick={() => movePeriod(p.id, 'up')}
                           disabled={periods.indexOf(p) === 0}
-                          className="w-6 h-6 bg-white border border-slate-200 text-slate-400 rounded-full flex items-center justify-center hover:text-indigo-600 disabled:hidden shadow-sm"
+                          className="w-6 h-6 bg-white border border-slate-200 text-slate-400 rounded-md flex items-center justify-center hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-sm"
                           title="Mover para cima"
                         >
                           <ChevronUp size={14} />
@@ -436,7 +506,7 @@ export default function App() {
                         <button 
                           onClick={() => movePeriod(p.id, 'down')}
                           disabled={periods.indexOf(p) === periods.length - 1}
-                          className="w-6 h-6 bg-white border border-slate-200 text-slate-400 rounded-full flex items-center justify-center hover:text-indigo-600 disabled:hidden shadow-sm"
+                          className="w-6 h-6 bg-white border border-slate-200 text-slate-400 rounded-md flex items-center justify-center hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-sm"
                           title="Mover para baixo"
                         >
                           <ChevronDown size={14} />
@@ -444,58 +514,12 @@ export default function App() {
                         <button 
                           disabled={periods.length <= 1}
                           onClick={() => removePeriod(p.id)}
-                          className="w-6 h-6 bg-white border border-slate-200 text-slate-400 rounded-full flex items-center justify-center hover:text-red-500 shadow-sm disabled:hidden"
+                          className="w-6 h-6 bg-white border border-slate-200 text-slate-400 rounded-md flex items-center justify-center hover:text-red-500 hover:border-red-200 hover:bg-red-50 disabled:opacity-0 transition-all shadow-sm"
                           title="Excluir"
                         >
-                          ×
+                          <Trash2 size={12} />
                         </button>
                       </div>
-
-                      <div className="grid grid-cols-2 gap-2 mb-2">
-                        <div>
-                          <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Início</label>
-                          <input 
-                            type="date"
-                            value={p.start}
-                            onChange={(e) => updatePeriod(p.id, 'start', e.target.value)}
-                            className="w-full px-2 py-1.5 rounded border border-slate-200 text-xs focus:ring-1 focus:ring-indigo-500 outline-none bg-white"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Fim</label>
-                          <input 
-                            type="date"
-                            min={p.start}
-                            value={p.end}
-                            onChange={(e) => updatePeriod(p.id, 'end', e.target.value)}
-                            className={`w-full px-2 py-1.5 rounded border text-xs focus:ring-1 focus:ring-indigo-500 outline-none bg-white ${
-                              isInvalid ? 'border-red-500' : 'border-slate-200'
-                            } ${statusClass}`}
-                          />
-                        </div>
-                      </div>
-                      
-                      <div className="relative">
-                        <input 
-                          type="text"
-                          list="names-list"
-                          value={p.name}
-                          onBlur={(e) => commitToHistory(e.target.value)}
-                          onChange={(e) => updatePeriod(p.id, 'name', e.target.value)}
-                          placeholder="Nome do período"
-                          className="w-full px-2 py-1.5 rounded border border-slate-200 text-xs focus:ring-1 focus:ring-indigo-500 outline-none font-medium bg-white"
-                        />
-                        <div className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-bold text-slate-400">
-                          {days}d
-                        </div>
-                      </div>
-
-                      {isInvalid && (
-                        <div className="mt-1 flex items-center gap-1 text-[9px] text-red-500 font-bold uppercase tracking-wider">
-                          <AlertTriangle size={10} />
-                          Data inválida
-                        </div>
-                      )}
                     </motion.div>
                   );
                 })}
@@ -513,7 +537,7 @@ export default function App() {
         </aside>
 
         {/* Main Content Area */}
-        <div className="col-span-8 flex flex-col gap-6 min-h-0">
+        <div className="col-span-7 flex flex-col gap-6 min-h-0">
           
           {/* Stats Bar */}
           <div className="grid grid-cols-3 gap-4">
