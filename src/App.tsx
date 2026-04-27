@@ -84,13 +84,12 @@ export default function App() {
     }
 
     const today = new Date();
-    const tomorrow = new Date();
-    tomorrow.setDate(today.getDate() + 1);
+    const todayStr = dateToString(today);
     
     setPeriods([{
       id: crypto.randomUUID(),
-      start: dateToString(today),
-      end: dateToString(tomorrow),
+      start: todayStr,
+      end: todayStr,
       name: 'Período-01'
     }]);
   }, []);
@@ -206,6 +205,7 @@ export default function App() {
   };
 
   const addPeriod = () => {
+    const todayStr = dateToString(new Date());
     const lastPeriod = periods[periods.length - 1];
     let nextStart = new Date();
     if (lastPeriod) {
@@ -214,12 +214,16 @@ export default function App() {
     const nextEnd = new Date(nextStart);
     nextEnd.setDate(nextEnd.getDate() + 1);
 
+    // Limit to today
+    const finalStart = parseDate(todayStr) < nextStart ? todayStr : dateToString(nextStart);
+    const finalEnd = parseDate(todayStr) < nextEnd ? todayStr : dateToString(nextEnd);
+
     const nextIdx = (periods.length + 1).toString().padStart(2, '0');
 
     setPeriods([...periods, {
       id: crypto.randomUUID(),
-      start: dateToString(nextStart),
-      end: dateToString(nextEnd),
+      start: finalStart,
+      end: finalEnd,
       name: `Período-${nextIdx}`
     }]);
   };
@@ -231,18 +235,27 @@ export default function App() {
   };
 
   const updatePeriod = (id: string, field: keyof Period, value: string) => {
+    const todayStr = dateToString(new Date());
+    
     setPeriods(prev => prev.map(p => {
       if (p.id !== id) return p;
       
-      const updated = { ...p, [field]: value };
+      // Prevent future dates
+      let finalValue = value;
+      if ((field === 'start' || field === 'end') && value > todayStr) {
+        finalValue = todayStr;
+      }
       
-      // Auto-logic: If start is updated, set end to start + 1
-      if (field === 'start' && value) {
-        const d = parseDate(value);
+      const updated = { ...p, [field]: finalValue };
+      
+      // Auto-logic: If start is updated, set end to start + 1 (limited by today)
+      if (field === 'start' && finalValue) {
+        const d = parseDate(finalValue);
         if (!isNaN(d.getTime())) {
           d.setDate(d.getDate() + 1);
-          const nextEnd = dateToString(d);
-          if (nextEnd) updated.end = nextEnd;
+          const calculatedEnd = dateToString(d);
+          // Limit end to today
+          updated.end = calculatedEnd > todayStr ? todayStr : calculatedEnd;
         }
       }
       
@@ -330,6 +343,9 @@ export default function App() {
     return { totalGrossDays, concurrentDays, netDays, periodSummaries };
   }, [periods]);
 
+  const totalYears = (results.netDays / 365).toFixed(2);
+  const quinquenios = (parseFloat(totalYears) / 5).toFixed(2);
+
   const fullSummaryText = useMemo(() => {
     const lines = [
       "RESUMO DE PERÍODOS",
@@ -339,11 +355,13 @@ export default function App() {
       `DIAS TOTAIS (BRUTO): ${results.totalGrossDays}`,
       `DIAS CONCOMITANTES: ${results.concurrentDays}`,
       `DIAS LÍQUIDOS (REAL): ${results.netDays}`,
+      `TOTAL EM ANOS: ${totalYears} anos`,
+      `TOTAL EM QUINQUÊNIOS: ${quinquenios} quinquênios`,
       "-------------------------",
       `Gerado em: ${new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date())}`
     ];
     return lines.join('\n');
-  }, [results]);
+  }, [results, totalYears, quinquenios]);
 
   const copyToClipboard = () => {
     if (summaryRef.current) {
@@ -433,8 +451,9 @@ export default function App() {
             <div className="p-4 overflow-y-auto space-y-4 flex-grow custom-scrollbar">
               <AnimatePresence initial={false}>
                 {periods.map((p) => {
+                  const todayStr = dateToString(new Date());
                   const days = diffInDays(parseDate(p.start), parseDate(p.end));
-                  const isInvalid = parseDate(p.end) <= parseDate(p.start);
+                  const isInvalid = parseDate(p.end) <= parseDate(p.start) || p.end > todayStr || p.start > todayStr;
                   const statusClass = days < 90 ? 'input-error' : days < 180 ? 'input-warn' : '';
 
                   return (
@@ -452,6 +471,7 @@ export default function App() {
                             <input 
                               type="date"
                               value={p.start}
+                              max={todayStr}
                               onChange={(e) => updatePeriod(p.id, 'start', e.target.value)}
                               className="w-full px-2 py-1.5 rounded border border-slate-200 text-xs focus:ring-1 focus:ring-indigo-500 outline-none bg-white"
                             />
@@ -461,6 +481,7 @@ export default function App() {
                             <input 
                               type="date"
                               min={p.start}
+                              max={todayStr}
                               value={p.end}
                               onChange={(e) => updatePeriod(p.id, 'end', e.target.value)}
                               className={`w-full px-2 py-1.5 rounded border text-xs focus:ring-1 focus:ring-indigo-500 outline-none bg-white ${
@@ -540,24 +561,36 @@ export default function App() {
         <div className="col-span-7 flex flex-col gap-6 min-h-0">
           
           {/* Stats Bar */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-4 gap-4">
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
               <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Dias Totais</p>
-              <p className="text-2xl font-bold text-slate-800 tracking-tight">{results.totalGrossDays}</p>
+              <p className="text-xl font-bold text-slate-800 tracking-tight">{results.totalGrossDays}</p>
             </div>
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
               <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Concomitantes</p>
-              <div className="flex items-baseline gap-1">
-                <p className="text-2xl font-bold text-amber-600 tracking-tight">{results.concurrentDays}</p>
-                <span className="text-[9px] font-bold text-slate-400">D</span>
-              </div>
+              <p className="text-xl font-bold text-amber-600 tracking-tight">{results.concurrentDays}<span className="text-[9px] ml-0.5">d</span></p>
             </div>
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm ring-2 ring-indigo-50 ring-offset-0">
-              <p className="text-[10px] font-bold text-indigo-400 uppercase mb-1">Dias Líquidos</p>
-              <div className="flex items-baseline gap-1">
-                <p className="text-3xl font-black text-indigo-700 tracking-tighter">{results.netDays}</p>
-                <span className="text-[10px] font-black text-indigo-400 italic">REAL</span>
+            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+              <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Total em Anos</p>
+              <p className="text-xl font-bold text-emerald-600 tracking-tight">{totalYears}<span className="text-[9px] ml-0.5 text-slate-400">a</span></p>
+            </div>
+            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+              <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Quinquênios</p>
+              <p className="text-xl font-bold text-indigo-500 tracking-tight">{quinquenios}<span className="text-[9px] ml-0.5 text-slate-400">q</span></p>
+            </div>
+          </div>
+
+          <div className="bg-indigo-600 px-6 py-4 rounded-xl shadow-lg shadow-indigo-100 flex justify-between items-center">
+            <div>
+              <p className="text-[10px] font-black text-indigo-100 uppercase tracking-widest mb-0.5">Total de Dias Líquidos (Real)</p>
+              <p className="text-4xl font-black text-white tracking-tighter">{results.netDays}</p>
+            </div>
+            <div className="text-right">
+              <div className="flex items-center gap-2 text-indigo-200 justify-end mb-1">
+                <BarChart3 size={16} />
+                <span className="text-[10px] font-bold uppercase">Métricas de Prazo</span>
               </div>
+              <p className="text-xs font-medium text-white opacity-80 italic">Calculado com base em {periods.length} períodos</p>
             </div>
           </div>
 
@@ -634,7 +667,10 @@ export default function App() {
                       </div>
                       <div className="mt-2 pt-2 border-t border-slate-800 flex justify-between items-baseline">
                         <span className="text-[10px] text-indigo-300 font-bold italic">DURAÇÃO</span>
-                        <span className="text-lg font-black text-white">{diffInDays(parseDate(hoveredPeriod.start), parseDate(hoveredPeriod.end))}d</span>
+                        <div className="text-right">
+                          <p className="text-lg font-black text-white leading-none">{diffInDays(parseDate(hoveredPeriod.start), parseDate(hoveredPeriod.end))}d</p>
+                          <p className="text-[10px] font-bold text-slate-500">{(diffInDays(parseDate(hoveredPeriod.start), parseDate(hoveredPeriod.end)) / 365).toFixed(2)} anos</p>
+                        </div>
                       </div>
                     </div>
                   </motion.div>
