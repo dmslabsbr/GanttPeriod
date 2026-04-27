@@ -1,0 +1,6 @@
+{
+  "name": "Calculadora de Concomitância",
+  "description": "Web App SPA para cálculo de períodos, detecção de sobreposições (concomitância) e visualização em gráfico de Gantt.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
