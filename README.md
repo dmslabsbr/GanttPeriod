@@ -13,7 +13,11 @@
 - **Professional Summary**: Automatically generates a detailed report including:
   - Start/End dates and duration for each period.
   - Granular breakdown of concomitant days with other specific periods.
-  - Total Gross Days vs. Concomitant Days vs. **Net Days**.
+  - **Metrics**: Total Gross Days, Concomitant Days, and **Net Days**.
+  - **Calculations**: Automatically converts net days to **Years (Days/365)** and **Quinquennials (Years/5)**.
+- **Data Integrity**: 
+  - **No Future Dates**: Prevents selection of dates beyond today.
+  - **Validation**: Ensures logical consistency between start and end dates.
 - **Smart History**: Remembers recently used period names for quick selection across all inputs.
 - **Local Persistence**: All data is saved locally in your browser (LocalStorage).
 - **Docker Ready**: Deploy easily using the pre-configured Docker environment.

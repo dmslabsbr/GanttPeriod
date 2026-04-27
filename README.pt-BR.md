@@ -13,7 +13,11 @@
 - **Resumo Profissional Detalhado**: Gera automaticamente um texto pronto para copiar com:
   - Datas de início, fim e duração de cada período.
   - Detalhamento de quantos dias são concomitantes com cada um dos outros períodos.
-  - Cálculos finais: Dias Brutos, Dias Concomitantes e **Total Líquido**.
+  - **Métricas**: Dias Brutos, Dias Concomitantes e **Total Líquido**.
+  - **Cálculo de Prazos**: Converte automaticamente o total líquido para **Anos (Dias/365)** e **Quinquênios (Anos/5)**.
+- **Integridade de Dados**:
+  - **Sem Datas Futuras**: Bloqueia a seleção de datas posteriores à data de hoje.
+  - **Validação**: Garante que a data fim seja sempre igual ou superior à data início.
 - **Histórico Inteligente**: Sugere nomes de períodos usados anteriormente em qualquer campo de entrada.
 - **Privacidade e Persistência**: Os dados são salvos apenas no navegador do usuário (LocalStorage).
 - **Pronto para Docker**: Suba o ambiente em segundos.
